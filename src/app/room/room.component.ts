@@ -85,10 +85,22 @@ export class RoomComponent implements OnInit {
   }
 
   ngOnInit() {
-    
+   
   }
   newDisconnectResetData(){
 
+  }
+   state = {
+    isFrontFacing: false,
+    encoder: new TextEncoder(),
+    decoder: new TextDecoder(),
+    defaultDevices: new Map<MediaDeviceKind, string>(),
+    bitrateInterval: undefined as any,
+    e2eeKeyProvider: new ExternalE2EEKeyProvider(),
+  };
+  pushData(data:string){
+    const msg = this.state.encoder.encode(data);
+    this.currentRoom!.localParticipant.publishData(msg, DataPacket_Kind.RELIABLE);
   }
 
 	renderParticipant(participant: Participant, remove: boolean = false) {
@@ -137,20 +149,21 @@ async handleDevicesChanged() {
 participantConnected(participant: Participant) {
   console.log('participant', participant.identity, 'connected', participant.metadata);
   console.log('tracks', participant.tracks);
+  var that = this;
   participant
     .on(ParticipantEvent.TrackMuted, (pub: TrackPublication) => {
       console.log('track was muted', pub.trackSid, participant.identity);
-      this.renderParticipant(participant);
+      that.renderParticipant(participant);
     })
     .on(ParticipantEvent.TrackUnmuted, (pub: TrackPublication) => {
       console.log('track was unmuted', pub.trackSid, participant.identity);
-      this.renderParticipant(participant);
+      that.renderParticipant(participant);
     })
     .on(ParticipantEvent.IsSpeakingChanged, () => {
-      this.renderParticipant(participant);
+      that.renderParticipant(participant);
     })
     .on(ParticipantEvent.ConnectionQualityChanged, () => {
-      this.renderParticipant(participant);
+      that.renderParticipant(participant);
     });
 }
 participantDisconnected(participant: RemoteParticipant) {
@@ -191,6 +204,15 @@ async mutedAudio(){
   }
 
 }
+
+
+async handleData(msg: Uint8Array, participant?: RemoteParticipant) {
+  debugger;
+  const str = this.state.decoder.decode(msg);
+  
+  console.log(str);
+}
+
 async ConnectRoom(){
   const roomOpts: RoomOptions = {
     adaptiveStream:true,
@@ -221,10 +243,37 @@ async ConnectRoom(){
   const prewarmTime = Date.now() - this.startTime;
   console.log(`prewarmed connection in ${prewarmTime}ms`);
 
+  var that = this;
   room
-    .on(RoomEvent.ParticipantConnected, this.participantConnected)
-    .on(RoomEvent.ParticipantDisconnected, this.participantDisconnected)
-    // .on(RoomEvent.DataReceived, handleData)
+    .on(RoomEvent.ParticipantConnected, (participant: Participant)=> {
+      console.log('participant', participant.identity, 'connected', participant.metadata);
+      console.log('tracks', participant.tracks);
+      participant
+        .on(ParticipantEvent.TrackMuted, (pub: TrackPublication) => {
+          console.log('track was muted', pub.trackSid, participant.identity);
+          that.renderParticipant(participant);
+        })
+        .on(ParticipantEvent.TrackUnmuted, (pub: TrackPublication) => {
+          console.log('track was unmuted', pub.trackSid, participant.identity);
+          that.renderParticipant(participant);
+        })
+        .on(ParticipantEvent.IsSpeakingChanged, () => {
+          that.renderParticipant(participant);
+        })
+        .on(ParticipantEvent.ConnectionQualityChanged, () => {
+          that.renderParticipant(participant);
+        });
+    })
+    .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant)=> {
+      console.log('participant', participant.sid, 'disconnected');
+    
+      that.renderParticipant(participant, true);
+    })
+    .on(RoomEvent.DataReceived, (msg: Uint8Array, participant?: RemoteParticipant) =>{
+      const str = that.state.decoder.decode(msg);
+      
+      console.log(str);
+    })
     .on(RoomEvent.Disconnected, this.handleRoomDisconnect)
     .on(RoomEvent.Reconnecting, () => console.log('Reconnecting to room'))
     .on(RoomEvent.Reconnected, async () => {
