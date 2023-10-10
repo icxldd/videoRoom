@@ -1,0 +1,25 @@
+<!--
+ * @Descripttion: 
+ * @version: 1.0
+ * @Author: icxl
+ * @Date: 2021-07-03 22:15:24
+ * @LastEditors: icxl
+ * @LastEditTime: 2021-07-07 17:21:56
+-->
+<div>
+  <div id="selfDevices">
+    <h1>自己名称：{{currentUserId}}</h1>
+    <h1>房间id:{{roomId}}</h1>
+  </div>
+
+  <div id="participants-area">
+    <audio id="audio-remote" *ngIf="remoteIsShow"></audio>
+  </div>
+
+
+  <button (click)="mutedAudio()"  type="button">
+    {{isMuted ? '取消静音' : '静音'}}
+  </button>
+
+
+</div>
